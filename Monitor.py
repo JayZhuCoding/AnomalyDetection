@@ -4,15 +4,17 @@ import datetime
 from decimal import Decimal
 import math
 import matplotlib.pyplot as plt
+import matplotlib
 import numpy as np
 import os
 import time
 from sklearn import svm
 
 
+
 class Monitor:
 
-    def __init__(self, name, input_file):
+    def __init__(self, name, input_file, DAYS):
         """
         :param name: give monitor a name
         :param input_file: the csv file with real-time data
@@ -20,9 +22,10 @@ class Monitor:
         """
         self.name = name
         self.input_file = input_file
-        self.monitor_file = None
+        self.history_file = None
         self.min_timestamp = None
         self.max_timestamp = None
+        self.DAYS = DAYS
 
     def initialize_monitor(self):
         timestamps = []
@@ -35,9 +38,9 @@ class Monitor:
         fr.close()
         self.min_timestamp = min(timestamps)
         self.max_timestamp = max(timestamps)
-        self.monitor_file = os.path.join(os.path.dirname(self.input_file), self.name + "_Monitor.csv")
+        self.history_file = os.path.join(os.path.dirname(self.input_file), self.name + "_History.csv")
 
-    def create_monitor_file(self):
+    def create_history_file(self):
         timestamps = []
         measurements = []
         fr = open(self.input_file, "r")  # read real-time data into list
@@ -45,13 +48,13 @@ class Monitor:
         for line in fr.readlines():
             m = line.strip().split(",")
             timestamp = datetime.datetime.strptime(m[0][:13], "%Y-%m-%d %H")
-            temperature = m[1]
-            ph = m[2]
-            conductivity = m[3]
-            orp = m[5]
-            do = m[6]
+            firstRange = m[1]
+            secondRange = m[2]
+            thirdRange = m[3]
+            fourthRange = m[5]
+            fifthRange = m[6]
             timestamps.append(timestamp)  # timestamps
-            measurements.append([timestamp, temperature, ph, conductivity, orp, do])  # measurements
+            measurements.append([timestamp, firstRange, secondRange, thirdRange, fourthRange, fifthRange])  # measurements
         fr.close()
         for m in measurements:
             for i in range(1, 6):
@@ -65,37 +68,37 @@ class Monitor:
             if unique_timestamp in timestamps:
                 cm = measurements[timestamps.index(unique_timestamp)]
                 timestamp = str(unique_timestamp)
-                temperature = cm[1]
-                ph = cm[2]
-                conductivity = cm[3]
-                orp = cm[4]
-                do = cm[5]
+                firstRange = cm[1]
+                secondRange = cm[2]
+                thirdRange = cm[3]
+                fourthRange = cm[4]
+                fifthRange = cm[5]
                 label = "nan"
                 outlier_prob = "nan"
-                if temperature == "nan" or ph == "nan" or conductivity == "nan" or orp == "nan" or do == "nan":
+                if firstRange == "nan" or secondRange == "nan" or thirdRange == "nan" or fourthRange == "nan" or fifthRange == "nan":
                     label = "-1"
                     outlier_prob = "1.0"
                 event_prob = "nan"
                 clean_measurements.append(
-                    [timestamp, temperature, ph, conductivity, orp, do, label, outlier_prob, event_prob]
+                    [timestamp, firstRange, secondRange, thirdRange, fourthRange, fifthRange, label, outlier_prob, event_prob]
                 )
             else:
                 timestamp = str(unique_timestamp)
-                temperature = "nan"
-                ph = "nan"
-                conductivity = "nan"
-                orp = "nan"
-                do = "nan"
+                firstRange = "nan"
+                secondRange = "nan"
+                thirdRange = "nan"
+                fourthRange = "nan"
+                fifthRange = "nan"
                 label = "-1"
                 outlier_prob = "1.0"
                 event_prob = "nan"
                 clean_measurements.append(
-                    [timestamp, temperature, ph, conductivity, orp, do, label, outlier_prob, event_prob]
+                    [timestamp, firstRange, secondRange, thirdRange, fourthRange, fifthRange, label, outlier_prob, event_prob]
                 )
             unique_timestamp += datetime.timedelta(hours=1)
 
-        fw = open(self.monitor_file, "w")
-        header = "MeasurementDateTime,Temperature,pH,Conductivity,ORP,DO,Label,OutlierProb,EventProb\n"
+        fw = open(self.history_file, "w")
+        header = "MeasurementDateTime,firstRange,secondRange,thirdRange,fourthRange,fifthRange,Label,OutlierProb,EventProb\n"
         fw.write(header)
         for cm in clean_measurements:
             line = ",".join(cm) + "\n"
@@ -105,7 +108,7 @@ class Monitor:
     def load_monitor_data(self, from_timestamp, to_timestamp, target_label=None):
         timestamps = []
         values = []
-        fr = open(self.monitor_file, "r")
+        fr = open(self.history_file, "r")
         fr.readline()
         for line in fr.readlines():
             m = line.strip().split(",")
@@ -114,27 +117,28 @@ class Monitor:
             if target_label is None:
                 if from_timestamp <= timestamp <= to_timestamp:
                     timestamps.append(timestamp)
-                    temperature = float(m[1])
-                    ph = float(m[2])
-                    conductivity = float(m[3])
-                    orp = float(m[4])
-                    do = float(m[5])
+                    firstRange = float(m[1])
+                    secondRange = float(m[2])
+                    thirdRange = float(m[3])
+                    fourthRange = float(m[4])
+                    fifthRange = float(m[5])
                     label = float(label)
                     outlier_prob = float(m[7])
                     event_prob = float(m[8])
-                    values.append([temperature, ph, conductivity, orp, do, label, outlier_prob, event_prob])
+                    values.append([firstRange, secondRange, thirdRange, fourthRange, fifthRange, label, outlier_prob, event_prob])
             else:
                 if from_timestamp <= timestamp <= to_timestamp and label == target_label:
                     timestamps.append(timestamp)
-                    temperature = float(m[1])
-                    ph = float(m[2])
-                    conductivity = float(m[3])
-                    orp = float(m[4])
-                    do = float(m[5])
+                    firstRange = float(m[1])
+                    secondRange = float(m[2])
+                    thirdRange = float(m[3])
+                    fourthRange = float(m[4])
+                    fifthRange = float(m[5])
                     label = float(label)
                     outlier_prob = float(m[7])
                     event_prob = float(m[8])
-                    values.append([temperature, ph, conductivity, orp, do, label, outlier_prob, event_prob])
+                    values.append([firstRange, secondRange, thirdRange, fourthRange, fifthRange, label, outlier_prob, event_prob])
+
         return timestamps, values
 
     def normalize_data(self, values):
@@ -151,7 +155,7 @@ class Monitor:
 
     def classify_historical_data(self, z_score):
         from_timestamp = self.min_timestamp
-        to_timestamp = self.min_timestamp + datetime.timedelta(days=365) - datetime.timedelta(hours=1)
+        to_timestamp = self.min_timestamp + datetime.timedelta(days=self.DAYS) - datetime.timedelta(hours=1)
         hist_timestamps, hist_values = self.load_monitor_data(from_timestamp, to_timestamp, "nan")
         hist_data = np.array(hist_values, dtype=float)[:, 0:5]
         mu = np.nanmean(hist_data, axis=0)  # mean of historical data without nan
@@ -168,11 +172,11 @@ class Monitor:
             else:
                 hist_values[i][5] = 1
                 hist_values[i][6] = 0.0
-        fr = open(self.monitor_file, "r")
+        fr = open(self.history_file, "r")
         header = fr.readline()
         lines = fr.readlines()
         fr.close()
-        fw = open(self.monitor_file, "w")  # update monitor file
+        fw = open(self.history_file, "w")  # update monitor file
         fw.write(header)
         for line in lines:
             timestamp = datetime.datetime.strptime(line.strip().split(",")[0], "%Y-%m-%d %H:%M:%S")
@@ -180,15 +184,15 @@ class Monitor:
                 idx = hist_timestamps.index(timestamp)
                 value = hist_values[idx]
                 timestamp = str(timestamp)
-                temperature = str(value[0])
-                ph = str(value[1])
-                conductivity = str(value[2])
-                orp = str(value[3])
-                do = str(value[4])
+                firstRange = str(value[0])
+                secondRange = str(value[1])
+                thirdRange = str(value[2])
+                fourthRange = str(value[3])
+                fifthRange = str(value[4])
                 label = str(int(value[5]))
                 outlier_prob = str(value[6])
                 event_prob = str(value[7])
-                m = [timestamp, temperature, ph, conductivity, orp, do, label, outlier_prob, event_prob]
+                m = [timestamp, firstRange, secondRange, thirdRange, fourthRange, fifthRange, label, outlier_prob, event_prob]
                 fw.write(",".join(m) + "\n")
             else:
                 fw.write(line)
@@ -197,7 +201,7 @@ class Monitor:
     def optimize_training_parameters(self, n):
         # data
         from_timestamp = self.min_timestamp
-        to_timestamp = self.min_timestamp + datetime.timedelta(days=365) + datetime.timedelta(hours=1)
+        to_timestamp = self.min_timestamp + datetime.timedelta(days=self.DAYS) + datetime.timedelta(hours=1)
         train_timestamps, train_values = self.load_monitor_data(from_timestamp, to_timestamp, "1")
         train_data = np.array(train_values)[:, 0:5]
 
@@ -253,12 +257,12 @@ class Monitor:
         # classifier
         classifier = svm.OneClassSVM(kernel="rbf", nu=nu, gamma=gamma)
         # data for test
-        from_timestamp = self.min_timestamp + datetime.timedelta(days=365)
+        from_timestamp = self.min_timestamp + datetime.timedelta(days=self.DAYS)
         to_timestamp = self.max_timestamp
         test_timestamps, test_values = self.load_monitor_data(from_timestamp, to_timestamp, "nan")
         test_data = np.array(test_values)[:, 0:5]
         # data for train
-        to_timestamp = self.min_timestamp + datetime.timedelta(days=365) + datetime.timedelta(hours=1)
+        to_timestamp = self.min_timestamp + datetime.timedelta(days=self.DAYS) + datetime.timedelta(hours=1)
         train_timestamps, train_values = self.load_monitor_data(self.min_timestamp, to_timestamp, "1")
         for i in range(len(test_timestamps)):
             # predict
@@ -271,13 +275,13 @@ class Monitor:
                 train_values.append(test_values[i])
             else:
                 test_values[i][6] = 1.0
-            print test_timestamps[i], label, test_values[i]
+            # print test_timestamps[i], label, test_values[i]
         # write result into monitor file
-        fr = open(self.monitor_file, "r")
+        fr = open(self.history_file, "r")
         header = fr.readline()
         lines = fr.readlines()
         fr.close()
-        fw = open(self.monitor_file, "w")  # update monitor file
+        fw = open(self.history_file, "w")  # update monitor file
         fw.write(header)
         for line in lines:
             timestamp = datetime.datetime.strptime(line.strip().split(",")[0], "%Y-%m-%d %H:%M:%S")
@@ -285,15 +289,15 @@ class Monitor:
                 idx = test_timestamps.index(timestamp)
                 value = test_values[idx]
                 timestamp = str(timestamp)
-                temperature = str(value[0])
-                ph = str(value[1])
-                conductivity = str(value[2])
-                orp = str(value[3])
-                do = str(value[4])
+                firstRange = str(value[0])
+                secondRange = str(value[1])
+                thirdRange = str(value[2])
+                fourthRange = str(value[3])
+                fifthRange = str(value[4])
                 label = str(int(value[5]))
                 outlier_prob = str(value[6])
                 event_prob = str(value[7])
-                m = [timestamp, temperature, ph, conductivity, orp, do, label, outlier_prob, event_prob]
+                m = [timestamp, firstRange, secondRange, thirdRange, fourthRange, fifthRange, label, outlier_prob, event_prob]
                 fw.write(",".join(m) + "\n")
             else:
                 fw.write(line)
@@ -301,7 +305,7 @@ class Monitor:
 
     def estimate_event_probability(self, r, n, p):
         # Binomial Event Discriminator
-        from_timestamp = self.min_timestamp + datetime.timedelta(days=365)
+        from_timestamp = self.min_timestamp + datetime.timedelta(days=self.DAYS)
         to_timestamp = self.max_timestamp
         timestamps, values = self.load_monitor_data(from_timestamp, to_timestamp, None)
         values = np.array(values, dtype=float)
@@ -311,44 +315,48 @@ class Monitor:
         self.initialize_monitor()
         # plot historical data with outliers
         from_timestamp = self.min_timestamp
-        to_timestamp = self.min_timestamp + datetime.timedelta(days=365) - datetime.timedelta(hours=1)
+        to_timestamp = self.min_timestamp + datetime.timedelta(days=self.DAYS) - datetime.timedelta(hours=1)
         timestamps, values = self.load_monitor_data(from_timestamp, to_timestamp, None)
         values = np.array(values, dtype=float)
         title = "Historical Data with Outliers"
         #
-        temp = values[:, 0]
-        ph = values[:, 1]
-        cond = values[:, 2]
-        orp = values[:, 3]
-        do = values[:, 4]
-        fig = plt.figure()
+        firstRange = values[:, 0]
+        secondRange = values[:, 1]
+        thirdRange = values[:, 2]
+        fourthRange = values[:, 3]
+        fifthRange = values[:, 4]
+        fig = plt.figure(figsize=(12, 8))
         fig.suptitle(self.name + " - " + title)
         #
-        ax_temp = fig.add_subplot(511)
-        ax_temp.plot(timestamps, temp, "-r")
-        ax_temp.set_ylabel("Temperature")
-        ax_temp.set_ylim([5, 35])
+        ax_firstRange = fig.add_subplot(511)
+        ax_firstRange.plot(timestamps, firstRange, "-r")
+        ax_firstRange.set_ylabel("firstRange")
+        ax_firstRange.set_ylim([30, 50])
+        ax_firstRange.axes.get_xaxis().set_visible(False)
         #
-        ax_ph = fig.add_subplot(512)
-        ax_ph.plot(timestamps, ph, "-g")
-        ax_ph.set_ylabel("pH")
-        ax_ph.set_ylim([0, 14])
+        ax_secondRange = fig.add_subplot(512)
+        ax_secondRange.plot(timestamps, secondRange, "-g")
+        ax_secondRange.set_ylabel("secondRange")
+        ax_secondRange.set_ylim([30, 50])
+        ax_secondRange.axes.get_xaxis().set_visible(False)
         #
-        ax_cond = fig.add_subplot(513)
-        ax_cond.plot(timestamps, cond, "-b")
-        ax_cond.set_ylabel("Conductivity")
-        ax_cond.set_ylim([0, 3.5])
+        ax_thirdRange = fig.add_subplot(513)
+        ax_thirdRange.plot(timestamps, thirdRange, "-b")
+        ax_thirdRange.set_ylabel("thirdRange")
+        ax_thirdRange.set_ylim([30, 50])
+        ax_thirdRange.axes.get_xaxis().set_visible(False)
         #
-        ax_orp = fig.add_subplot(514)
-        ax_orp.plot(timestamps, orp, "-m")
-        ax_orp.set_ylabel("ORP")
-        ax_orp.set_ylim([-1000, 6000])
+        ax_fourthRange = fig.add_subplot(514)
+        ax_fourthRange.plot(timestamps, fourthRange, "-m")
+        ax_fourthRange.set_ylabel("fourthRange")
+        ax_fourthRange.set_ylim([30, 50])
+        ax_fourthRange.axes.get_xaxis().set_visible(False)
         #
-        ax_do = fig.add_subplot(515)
-        ax_do.plot(timestamps, do, "-c")
-        ax_do.set_ylabel("DO")
-        ax_do.set_xlabel("Date Time")
-        ax_do.set_ylim([0, 10])
+        ax_fifthRange = fig.add_subplot(515)
+        ax_fifthRange.plot(timestamps, fifthRange, "-c")
+        ax_fifthRange.set_ylabel("fifthRange")
+        ax_fifthRange.set_xlabel("Date Time")
+        ax_fifthRange.set_ylim([30, 50])
         #
         plt.show()
 
@@ -371,118 +379,143 @@ class Monitor:
         values2 = np.array(values2, dtype=float)
         title = "Historical Data without Outliers"
         #
-        temp = values2[:, 0]
-        ph = values2[:, 1]
-        cond = values2[:, 2]
-        orp = values2[:, 3]
-        do = values2[:, 4]
-        fig = plt.figure()
+        firstRange = values2[:, 0]
+        secondRange = values2[:, 1]
+        thirdRange = values2[:, 2]
+        fourthRange = values2[:, 3]
+        fifthRange = values2[:, 4]
+        fig = plt.figure(figsize=(12, 8))
         fig.suptitle(self.name + " - " + title)
         #
-        ax_temp = fig.add_subplot(511)
-        ax_temp.plot(timestamps2, temp, "-r")
-        ax_temp.set_ylabel("Temperature")
-        ax_temp.set_ylim([5, 35])
+        ax_firstRange = fig.add_subplot(511)
+        ax_firstRange.plot(timestamps2, firstRange, "-r")
+        ax_firstRange.set_ylabel("firstRange")
+        ax_firstRange.set_ylim([30, 50])
+        ax_firstRange.axes.get_xaxis().set_visible(False)
         #
-        ax_ph = fig.add_subplot(512)
-        ax_ph.plot(timestamps2, ph, "-g")
-        ax_ph.set_ylabel("pH")
-        ax_ph.set_ylim([0, 14])
+        ax_secondRange = fig.add_subplot(512)
+        ax_secondRange.plot(timestamps2, secondRange, "-g")
+        ax_secondRange.set_ylabel("secondRange")
+        ax_secondRange.set_ylim([30, 50])
+        ax_secondRange.axes.get_xaxis().set_visible(False)
         #
-        ax_cond = fig.add_subplot(513)
-        ax_cond.plot(timestamps2, cond, "-b")
-        ax_cond.set_ylabel("Conductivity")
-        ax_cond.set_ylim([0, 3.5])
+        ax_thirdRange = fig.add_subplot(513)
+        ax_thirdRange.plot(timestamps2, thirdRange, "-b")
+        ax_thirdRange.set_ylabel("thirdRange")
+        ax_thirdRange.set_ylim([30, 50])
+        ax_thirdRange.axes.get_xaxis().set_visible(False)
         #
-        ax_orp = fig.add_subplot(514)
-        ax_orp.plot(timestamps2, orp, "-m")
-        ax_orp.set_ylabel("ORP")
-        ax_orp.set_ylim([-1000, 6000])
+        ax_fourthRange = fig.add_subplot(514)
+        ax_fourthRange.plot(timestamps2, fourthRange, "-m")
+        ax_fourthRange.set_ylabel("fourthRange")
+        ax_fourthRange.set_ylim([30, 50])
+        ax_fourthRange.axes.get_xaxis().set_visible(False)
         #
-        ax_do = fig.add_subplot(515)
-        ax_do.plot(timestamps2, do, "-c")
-        ax_do.set_ylabel("DO")
-        ax_do.set_ylim([0, 10])
-        ax_do.set_xlabel("Date Time")
+        ax_fifthRange = fig.add_subplot(515)
+        ax_fifthRange.plot(timestamps2, fifthRange, "-c")
+        ax_fifthRange.set_ylabel("fifthRange")
+        ax_fifthRange.set_ylim([30, 50])
+        ax_fifthRange.set_xlabel("Date Time")
         #
         plt.show()
 
-    def plot_outlier_trend(self):
+    def plot_detection_result(self):
         self.initialize_monitor()
         # plot historical data with outliers
-        from_timestamp = self.min_timestamp + datetime.timedelta(days=365)
+        from_timestamp = self.min_timestamp + datetime.timedelta(days=self.DAYS)
         to_timestamp = self.max_timestamp
         timestamps, values = self.load_monitor_data(from_timestamp, to_timestamp, None)
         values = np.array(values, dtype=float)
-        title = "Outlier Detection Results"
+        title = "Detection Results"
         #
-        temp = values[:, 0]
-        ph = values[:, 1]
-        cond = values[:, 2]
-        orp = values[:, 3]
-        do = values[:, 4]
+        firstRange = values[:, 0]
+        secondRange = values[:, 1]
+        thirdRange = values[:, 2]
+        fourthRange = values[:, 3]
+        fifthRange = values[:, 4]
         labels = values[:, 5]
-        fig = plt.figure()
+        # filter
+        for i in xrange(len(labels) - 1):
+            if not (labels[i] == -1 and labels[i + 1] == -1):
+                labels[i] = 1
+
+        fig = plt.figure(figsize=(12, 8))
+
+        plt.ion()
         fig.suptitle(self.name + " - " + title)
         #
-        ax_temp = fig.add_subplot(611)
-        ax_temp.plot(timestamps, temp, "-r")
-        ax_temp.set_ylabel("Temperature")
-        #
-        ax_ph = fig.add_subplot(612)
-        ax_ph.plot(timestamps, ph, "-g")
-        ax_ph.set_ylabel("pH")
-        #
-        ax_cond = fig.add_subplot(613)
-        ax_cond.plot(timestamps, cond, "-b")
-        ax_cond.set_ylabel("Conductivity")
-        #
-        ax_orp = fig.add_subplot(614)
-        ax_orp.plot(timestamps, orp, "-m")
-        ax_orp.set_ylabel("ORP")
-        #
-        ax_do = fig.add_subplot(615)
-        ax_do.plot(timestamps, do, "-c")
-        ax_do.set_ylabel("DO")
-        #
-        ax_lb = fig.add_subplot(616)
-        ax_lb.plot(timestamps, labels, "-y")
-        ax_lb.set_ylim([-2, 2])
-        ax_lb.set_yticks([-1, 1])
-        ax_lb.set_ylabel("Label")
-        ax_lb.set_xlabel("Date Time")
-        #
-        plt.show()
+        for t in xrange(1, len(timestamps) + 1):
+            s = t - 2
+            if s < 0:
+                s = 0
+            ax_firstRange = fig.add_subplot(611)
+            ax_firstRange.plot(timestamps[s: t], firstRange[s: t], "-y")
+            ax_firstRange.set_ylabel("firstRange")
+            ax_firstRange.axes.get_xaxis().set_visible(False)
+            #
+            ax_secondRange = fig.add_subplot(612)
+            ax_secondRange.plot(timestamps[s: t], secondRange[s: t], "-g")
+            ax_secondRange.set_ylabel("secondRange")
+            ax_secondRange.axes.get_xaxis().set_visible(False)
+            #
+            ax_thirdRange = fig.add_subplot(613)
+            ax_thirdRange.plot(timestamps[s: t], thirdRange[s: t], "-b")
+            ax_thirdRange.set_ylabel("thirdRange")
+            ax_thirdRange.axes.get_xaxis().set_visible(False)
+            #
+            ax_fourthRange = fig.add_subplot(614)
+            ax_fourthRange.plot(timestamps[s: t], fourthRange[s: t], "-m")
+            ax_fourthRange.set_ylabel("fourthRange")
+            ax_fourthRange.axes.get_xaxis().set_visible(False)
+            #
+            ax_fifthRange = fig.add_subplot(615)
+            ax_fifthRange.plot(timestamps[s: t], fifthRange[s: t], "-c")
+            ax_fifthRange.set_ylabel("fifthRange")
+            ax_fifthRange.axes.get_xaxis().set_visible(False)
+            #
+            ax_lb = fig.add_subplot(616)
+            if labels[t - 1] == -1:
+                ax_lb.plot(timestamps[s: t], labels[s: t], "-r")
+            else:
+                ax_lb.plot(timestamps[s: t], labels[s: t], "-g")
+            ax_lb.set_ylim([-2, 2])
+            ax_lb.set_yticks([-1, 1])
+            ax_lb.set_ylabel("Label")
+            ax_lb.set_xlabel("Date Time")
+            #
+            plt.pause(0.5)
+        plt.ioff()
+        plt.show(block=True)
+
 
     def start(self):
-        print ">> time: %s" % time.strftime("%X")
-        print ">> initialize monitor %s...\n" % self.name
+        print ">> Time: %s" % time.strftime("%X")
+        print ">> Initializing the monitor %s...\n" % self.name
         self.initialize_monitor()
 
-        print ">> creating the monitor file..."
-        self.create_monitor_file()
-        print ">> monitor file created!\n"
+        print ">> Creating the monitor file..."
+        self.create_history_file()
+        print ">> History file has been created!\n"
 
-        print ">> time: %s" % time.strftime("%X")
-        print ">> classifying historical data..."
+        print ">> Time: %s" % time.strftime("%X")
+        print ">> Classifying historical data..."
         self.classify_historical_data(z_score=1.98)
-        print ">> classification finished!\n"
+        print ">> Classification has finished!\n"
 
-        print ">> optimize the training parameters..."
+        # print ">> Optimizing the training parameters..."
         # opt_nu, opt_gamma = self.optimize_training_parameters(n=50)
-        print "optimization finished!\n"
+        # print "Optimization finished!\n"
 
-        print ">> time: %s" % time.strftime("%X")
-        print ">> monitoring new measurements..."
-        opt_nu, opt_gamma = 0.001, 0.1
+        print ">> Time: %s" % time.strftime("%X")
+        opt_nu, opt_gamma = 0.01, 0.01
         self.predict(nu=opt_nu, gamma=opt_gamma)
-        print ">> monitor stopped!"
-        print ">> time: %s" % time.strftime("%X")
+        print ">> Monitor has stopped!"
+        print ">> Time: %s" % time.strftime("%X")
 
 
 if __name__ == "__main__":
-    monitor = Monitor(name="CHILL", input_file="chill_realtime.csv")
-    # monitor = Monitor(name="ARDEC", input_file="ardec_realtime.csv")
+    monitor = Monitor(name="fc528d5e95b8", input_file="fc528d5e95b8.csv", DAYS=3)
     monitor.start()
-    monitor.plot_outlier_trend()
+    # monitor.plot_historical_trend()
+    monitor.plot_detection_result()
     # monitor.plot_training_parameters()
